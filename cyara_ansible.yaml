@@ -1,0 +1,53 @@
+---
+
+- 
+  
+  # Target machine where webserver will be installed
+  hosts: centos3
+
+  # Variables need to dynamically modify hostname and IP address on the welcome page
+  vars:
+    nginx_root_location: /usr/share/nginx/html
+    target_hostname: "{{ ansible_hostname }}"
+    target_ipaddress: "{{ ansible_default_ipv4.address }}"
+
+
+  tasks:
+
+    # EPEL is needed to install NGINX on CentOS
+    - name: install epel
+      yum:
+        name: epel-release
+        update_cache: yes
+        state: latest
+
+    # Install latest version on NGINX
+    - name: install nginx
+      yum:
+        name: nginx
+        update_cache: yes
+        state: latest
+      # Invoke the handler to make sure the webserver is running or not
+      notify: Check HTTP service
+
+    # transferring the jinja2 file contents to index.html on the target machine
+    - name: Changing default template
+      template:
+        src: cyaratemplate.j2
+        dest: /usr/share/nginx/html/index.html
+
+    # Restart the webserver after making all the changes
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+      notify: Check HTTP service
+
+  handlers:
+
+    - name: Check HTTP service
+      uri:
+        url: http://{{ ansible_default_ipv4.address}}
+        status_code: 200
+        
+...
